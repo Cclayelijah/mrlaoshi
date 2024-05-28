@@ -8,7 +8,7 @@ import schedule
 import os
 
 OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
-# DISCORD_BOT_TOKEN = os.environ['DISCORD_BOT_TOKEN']
+DISCORD_BOT_TOKEN = os.environ['DISCORD_BOT_TOKEN']
 
 # Initialize the OpenAI client
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
@@ -299,5 +299,5 @@ async def handle_follow_up_question(question):
 
 
 print("Starting the bot...")
-discord_client.run(os.environ['DISCORD_BOT_TOKEN'])
+discord_client.run(DISCORD_BOT_TOKEN)
 print("Bot has started")
