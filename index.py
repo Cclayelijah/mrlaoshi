@@ -22,7 +22,8 @@ intents.members = True  # Ensure the bot can access guild members
 discord_client = discord.Client(intents=intents)
 
 GUILD_ID = 1237488266073211001  # Replace with your actual guild ID
-JOURNAL_CHANNEL_NAME = "日杂-journals"  # Channel where threads will be created
+JOURNAL_CHANNEL_NAME = "日记-journal"  # Channel where journal threads will be created
+STANDUP_CHANNEL_NAME = "报到-checkin" # Channel where streak question is asked.
 
 # Dictionary to store thread IDs for each user
 user_threads = {}
@@ -131,24 +132,24 @@ def get_random_question(questions):
     return random.choice(questions)
 
 
-async def ask_english_questions():
-    print("Asking English questions...")
+async def ask_chinese_questions():
+    print("Asking Chinese question...")
     guild = discord_client.get_guild(GUILD_ID)
     if guild:
         print(f"Found guild: {guild.name}")
         chinese_role = discord.utils.get(guild.roles, name="学习中文")
         if chinese_role:
             print("Found role: 学习中文")
-            question = get_random_question(english_questions)
+            question = get_random_question(chinese_questions)
             for member in guild.members:
                 if chinese_role in member.roles:
                     try:
                         await member.send(
-                            "Hello, your daily journal is ready. Please check your thread under the channel '日杂-journals'."
+                            "Hello, your daily journal is ready. Please check your thread under the channel '{JOURNAL_CHANNEL_NAME}'."
                         )
                         print(f"Sent question to {member.name}")
-                        await send_to_thread(guild, member, question,
-                                             "English")
+                        message = f"今天的日记要回答：\n\n{question}"
+                        await send_to_thread(guild, member, message)
                     except Exception as e:
                         print(f"Failed to send message to {member.name}: {e}")
         else:
@@ -157,23 +158,23 @@ async def ask_english_questions():
         print(f"Guild with ID {GUILD_ID} not found.")
 
 
-async def ask_chinese_questions():
-    print("Asking Chinese questions...")
+async def ask_english_questions():
+    print("Asking English questions...")
     guild = discord_client.get_guild(GUILD_ID)
     if guild:
         print(f"Found guild: {guild.name}")
         english_role = discord.utils.get(guild.roles, name="Learning English")
         if english_role:
             print("Found role: Learning English")
-            question = get_random_question(chinese_questions)
+            question = get_random_question(english_questions)
             for member in guild.members:
                 if english_role in member.roles:
                     try:
                         await member.send(
-                            "你好，你的每日日志已准备好。请检查频道 '日杂-journals' 下的线程。")
+                            f"你好，你的每日日志已准备好。请检查频道 '{JOURNAL_CHANNEL_NAME}' 下的线程。")
                         print(f"Sent question to {member.name}")
-                        await send_to_thread(guild, member, question,
-                                             "Chinese")
+                        message = f"Here is your daily journal prompt:\n\n{question}"
+                        await send_to_thread(guild, member, message)
                     except Exception as e:
                         print(f"Failed to send message to {member.name}: {e}")
         else:
@@ -182,19 +183,20 @@ async def ask_chinese_questions():
         print(f"Guild with ID {GUILD_ID} not found.")
 
 
-async def send_to_thread(guild, member, question, language="English"):
+async def send_to_thread(guild, member, message):
     journal_channel = discord.utils.get(guild.channels,
                                         name=JOURNAL_CHANNEL_NAME)
+    # standup_channel = discord.utils.get(guild.channels, name=STANDUP_CHANNEL_NAME)
+
     if journal_channel:
         thread_id = user_threads.get(member.id)
         if thread_id:
             thread = await discord_client.fetch_channel(thread_id)
             if thread:
-                await thread.send(
-                    f"Here is your daily journal prompt:\n\n{question}")
+                await thread.send(message)
                 print(f"Sent question to existing thread for {member.name}")
             else:
-                print(f"Thread {thread_id} not found, creating a new one.")
+                print(f"Thread {thread_id} not found, creating a new one...")
                 await create_private_thread(guild, member, question, language)
         else:
             await create_private_thread(guild, member, question, language)
@@ -202,9 +204,11 @@ async def send_to_thread(guild, member, question, language="English"):
         print(f"Channel '{JOURNAL_CHANNEL_NAME}' not found.")
 
 
-async def create_private_thread(guild, member, question, language="English"):
+async def create_private_thread(guild, member, question, language):
     journal_channel = discord.utils.get(guild.channels,
                                         name=JOURNAL_CHANNEL_NAME)
+    # standup_channel = discord.utils.get(guild.channels, name=STANDUP_CHANNEL_NAME)
+
     if journal_channel:
         try:
             thread_name = f"{member.name}'s {language} Journal"
@@ -220,6 +224,19 @@ async def create_private_thread(guild, member, question, language="English"):
             print(f"Failed to create thread for {member.name}: {e}")
     else:
         print(f"Channel '{JOURNAL_CHANNEL_NAME}' not found.")
+
+    # if standup_channel:
+    #     try:
+    #         thread_name = f"{member.name}"
+    #         thread = await standup_channel.create_thread(name=thread_name, type=discord.ChannelType.private_thread)
+    #         await thread.send(f"Hello {member.mention}, did you complete your study goals today?")
+    #         await thread.add_user(member)
+    #         user_threads[member.id] = thread.id
+    #         print(f"Created study follow up thread for {member.name}")
+    #     except Exception as e:
+    #         print(f"Failed to create study follow up thread for {member.name}: {e}")
+    # else:
+    #     print(f"Channel '{STANDUP_CHANNEL_NAME}' not found.")
 
 
 @discord_client.event
@@ -247,7 +264,8 @@ async def on_message(message):
                 f'Here is the corrected version of your journal entry:\n\n{response}'
             )
             await message.channel.send(
-                "If you have any questions about the corrections, please start your follow-up question with 'Could you explain'."
+                #"If you have any questions about the corrections, please start your follow-up question with 'Could you explain'."
+                "Thank you for your response."
             )
     elif message.content.startswith("日志"):
         # Process Chinese journal entry
