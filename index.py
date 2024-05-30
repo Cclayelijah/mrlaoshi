@@ -25,6 +25,8 @@ GUILD_ID = 1237488266073211001  # Replace with your actual guild ID
 JOURNAL_CHANNEL_NAME = "日记-journal"  # Channel where journal threads will be created
 STANDUP_CHANNEL_NAME = "报到-checkin" # Channel where streak question is asked.
 
+streak_channel = discord_client.get_channel(1240506684791586889)
+
 # Dictionary to store thread IDs for each user
 user_threads = {}
 
@@ -77,6 +79,8 @@ chinese_questions = [
     "建议每日日志问题: 描述你今天做的一个创意活动。 (100个字)", "建议每日日志问题: 今天你练习了什么积极习惯？ (100个字)"
 ]
 
+# todo add new users to relevant scoreboards
+# /set user: polareyes scoreboard: journal points: 0
 
 @discord_client.event
 async def on_ready():
@@ -197,9 +201,9 @@ async def send_to_thread(guild, member, message):
                 print(f"Sent question to existing thread for {member.name}")
             else:
                 print(f"Thread {thread_id} not found, creating a new one...")
-                await create_private_thread(guild, member, question, language)
+                await create_private_thread(guild, member, message)
         else:
-            await create_private_thread(guild, member, question, language)
+            await create_private_thread(guild, member, message)
     else:
         print(f"Channel '{JOURNAL_CHANNEL_NAME}' not found.")
 
@@ -259,7 +263,7 @@ async def on_message(message):
                 f'Please write at least 100 words. You wrote {word_count} words.'
             )
         else:
-            response = await process_message(journal_content, "English")
+            response = await process_message(message, journal_content, "English")
             await message.channel.send(
                 f'Here is the corrected version of your journal entry:\n\n{response}'
             )
@@ -267,20 +271,20 @@ async def on_message(message):
                 #"If you have any questions about the corrections, please start your follow-up question with 'Could you explain'."
                 "Thank you for your response."
             )
-    elif message.content.startswith("日志"):
+    elif message.content.startswith("日记"):
         # Process Chinese journal entry
-        journal_content = message.content[len("日志"):].strip()
+        journal_content = message.content[len("日记"):].strip()
         char_count = len(journal_content)
         print(f"Chinese journal entry character count: {char_count}")
         if char_count < 100:
             await message.channel.send(f'请写至少100个字。你写了 {char_count} 个字。')
         else:
-            response = await process_message(journal_content, "Chinese")
+            response = await process_message(message, journal_content, "Chinese")
             await message.channel.send(f'这是你日记的改正版本：\n\n{response}')
             await message.channel.send("如果你对改正有任何问题，请以 '请解释' 开头提问。")
 
 
-async def process_message(content, language):
+async def process_message(message, content, language):
     prompt = f"Correct the grammar of the following {language} text:\n\n{content}"
     print(f"Sending prompt to OpenAI: {prompt}")
     try:
@@ -292,6 +296,9 @@ async def process_message(content, language):
             }])
         response = completion.choices[0].message.content.strip()
         print(f"Received response from OpenAI: {response}")
+
+        # increment journal streak
+        await streak_channel.send(f"/add user: {message.author} scoreboard: journal points: 1")
         return response
     except Exception as e:
         print(f"Error in OpenAI call: {e}")
