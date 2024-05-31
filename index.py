@@ -125,7 +125,7 @@ async def ask_chinese_questions():
                         )
                         print(f"Sent question to {member.name}")
                         message = f"今天的日记要回答：\n\n{question}"
-                        await send_to_thread(guild, member, message)
+                        await send_to_thread(guild, member, message, "Chinese")
                     except Exception as e:
                         print(f"Failed to send message to {member.name}: {e}")
         else:
@@ -150,7 +150,7 @@ async def ask_english_questions():
                             f"你好，你的每日日志已准备好。请检查频道 '{JOURNAL_CHANNEL_NAME}' 下的线程。")
                         print(f"Sent question to {member.name}")
                         message = f"Here is your daily journal prompt:\n\n{question}"
-                        await send_to_thread(guild, member, message)
+                        await send_to_thread(guild, member, message, "English")
                     except Exception as e:
                         print(f"Failed to send message to {member.name}: {e}")
         else:
@@ -159,7 +159,7 @@ async def ask_english_questions():
         print(f"Guild with ID {GUILD_ID} not found.")
 
 
-async def send_to_thread(guild, member, message):
+async def send_to_thread(guild, member, message, language):
     journal_channel = discord.utils.get(guild.channels,
                                         name=JOURNAL_CHANNEL_NAME)
     # standup_channel = discord.utils.get(guild.channels, name=STANDUP_CHANNEL_NAME)
@@ -173,9 +173,9 @@ async def send_to_thread(guild, member, message):
                 print(f"Sent question to existing thread for {member.name}")
             else:
                 print(f"Thread {thread_id} not found, creating a new one...")
-                await create_private_thread(guild, member, message)
+                await create_private_thread(guild, member, message, language)
         else:
-            await create_private_thread(guild, member, message)
+            await create_private_thread(guild, member, message, language)
     else:
         print(f"Channel '{JOURNAL_CHANNEL_NAME}' not found.")
 
