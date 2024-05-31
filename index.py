@@ -91,41 +91,13 @@ async def on_ready():
 async def schedule_tasks():
     print("Scheduling tasks...")
     # Schedule the tasks at a specific time zone (US/Eastern and Asia/Shanghai)
-    tz_eastern = pytz.timezone('US/Eastern')
+    tz_eastern = pytz.timezone('US/Eastern') # rob's time zone
     tz_china = pytz.timezone('Asia/Shanghai')
-    now_eastern = datetime.now(tz_eastern)
-    now_china = datetime.now(tz_china)
 
-    target_time_chinese_learners = now_eastern.replace(hour=7,
-                                                       minute=0,
-                                                       second=0,
-                                                       microsecond=0)
-    if now_eastern >= target_time_chinese_learners:
-        target_time_chinese_learners += timedelta(days=1)
-
-    target_time_english_learners = now_china.replace(hour=7,
-                                                     minute=0,
-                                                     second=0,
-                                                     microsecond=0)
-    if now_china >= target_time_english_learners:
-        target_time_english_learners += timedelta(days=1)
-
-    delay_chinese_learners = (target_time_chinese_learners -
-                              now_eastern).total_seconds()
-    delay_english_learners = (target_time_english_learners -
-                              now_china).total_seconds()
-
-    print(
-        f"Tasks scheduled to run in {delay_chinese_learners} seconds for Chinese learners"
-    )
-    print(
-        f"Tasks scheduled to run in {delay_english_learners} seconds for English learners"
-    )
-
-    schedule.every().day.at("07:00").do(asyncio.create_task,
-                                        ask_chinese_questions())
-    schedule.every().day.at("07:00").do(asyncio.create_task,
-                                        ask_english_questions())
+    schedule.every().day.at("07:00", tz_eastern).do(asyncio.create_task,
+                                        ask_chinese_questions()).tag('utc-5')
+    schedule.every().day.at("07:00", tz_china).do(asyncio.create_task,
+                                        ask_english_questions()).tag('utc+8')
 
     while True:
         schedule.run_pending()
@@ -135,7 +107,7 @@ async def schedule_tasks():
 def get_random_question(questions):
     return random.choice(questions)
 
-
+# Function scheduled to run at 7 AM UTC-05:00
 async def ask_chinese_questions():
     print("Asking Chinese question...")
     guild = discord_client.get_guild(GUILD_ID)
@@ -149,7 +121,7 @@ async def ask_chinese_questions():
                 if chinese_role in member.roles:
                     try:
                         await member.send(
-                            "Hello, your daily journal is ready. Please check your thread under the channel '{JOURNAL_CHANNEL_NAME}'."
+                            f"Hello, your daily journal is ready. Please check your thread under the channel '{JOURNAL_CHANNEL_NAME}'."
                         )
                         print(f"Sent question to {member.name}")
                         message = f"今天的日记要回答：\n\n{question}"
@@ -161,7 +133,7 @@ async def ask_chinese_questions():
     else:
         print(f"Guild with ID {GUILD_ID} not found.")
 
-
+# Function scheduled to run at 7 AM UTC+08:00
 async def ask_english_questions():
     print("Asking English questions...")
     guild = discord_client.get_guild(GUILD_ID)
@@ -265,11 +237,10 @@ async def on_message(message):
         else:
             response = await process_message(message, journal_content, "English")
             await message.channel.send(
-                f'Here is the corrected version of your journal entry:\n\n{response}'
+                f'Here is the corrected version of your journal entry:\n\n{response}\n\nCongratulations, your hard work will pay off! 💪'
             )
             await message.channel.send(
                 #"If you have any questions about the corrections, please start your follow-up question with 'Could you explain'."
-                "Thank you for your response."
             )
     elif message.content.startswith("日记"):
         # Process Chinese journal entry
@@ -280,8 +251,8 @@ async def on_message(message):
             await message.channel.send(f'请写至少100个字。你写了 {char_count} 个字。')
         else:
             response = await process_message(message, journal_content, "Chinese")
-            await message.channel.send(f'这是你日记的改正版本：\n\n{response}')
-            await message.channel.send("如果你对改正有任何问题，请以 '请解释' 开头提问。")
+            await message.channel.send(f'这是你日记的改正版本：\n\n{response}\n\n恭喜，你努力一定会有回报！💪')
+            # await message.channel.send("如果你对改正有任何问题，请以 '请解释' 开头提问。")
 
 
 async def process_message(message, content, language):
@@ -298,7 +269,7 @@ async def process_message(message, content, language):
         print(f"Received response from OpenAI: {response}")
 
         # increment journal streak
-        await streak_channel.send(f"/add user: {message.author} scoreboard: journal points: 1")
+        # await streak_channel.send(f"/add user: {message.author} scoreboard: journal points: 1")
         return response
     except Exception as e:
         print(f"Error in OpenAI call: {e}")
