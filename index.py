@@ -6,9 +6,13 @@ import pytz
 import asyncio
 import schedule
 import os
+from dotenv import load_dotenv
 
-OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
-DISCORD_BOT_TOKEN = os.environ['DISCORD_BOT_TOKEN']
+load_dotenv()
+
+
+OPENAI_API_KEY: str = os.getenv('OPENAI_API_KEY')
+DISCORD_BOT_TOKEN: str = os.getenv('DISCORD_BOT_TOKEN')
 
 # Initialize the OpenAI client
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
@@ -24,8 +28,7 @@ discord_client = discord.Client(intents=intents)
 GUILD_ID = 1237488266073211001  # Replace with your actual guild ID
 JOURNAL_CHANNEL_NAME = "日记-journal"  # Channel where journal threads will be created
 STANDUP_CHANNEL_NAME = "报到-checkin" # Channel where streak question is asked.
-
-streak_channel = discord_client.get_channel(1240506684791586889)
+STREAK_CHANNEL = discord_client.get_channel(1240506684791586889)
 
 # Dictionary to store thread IDs for each user
 user_threads = {}
@@ -125,7 +128,7 @@ async def ask_chinese_questions():
                         )
                         print(f"Sent question to {member.name}")
                         message = f"今天的日记要回答：\n\n{question}"
-                        await send_to_thread(guild, member, message)
+                        await send_to_thread(guild, member, message, "Chinese")
                     except Exception as e:
                         print(f"Failed to send message to {member.name}: {e}")
         else:
@@ -150,7 +153,7 @@ async def ask_english_questions():
                             f"你好，你的每日日志已准备好。请检查频道 '{JOURNAL_CHANNEL_NAME}' 下的线程。")
                         print(f"Sent question to {member.name}")
                         message = f"Here is your daily journal prompt:\n\n{question}"
-                        await send_to_thread(guild, member, message)
+                        await send_to_thread(guild, member, message, "English")
                     except Exception as e:
                         print(f"Failed to send message to {member.name}: {e}")
         else:
@@ -159,7 +162,7 @@ async def ask_english_questions():
         print(f"Guild with ID {GUILD_ID} not found.")
 
 
-async def send_to_thread(guild, member, message):
+async def send_to_thread(guild, member, message, language):
     journal_channel = discord.utils.get(guild.channels,
                                         name=JOURNAL_CHANNEL_NAME)
     # standup_channel = discord.utils.get(guild.channels, name=STANDUP_CHANNEL_NAME)
@@ -173,9 +176,9 @@ async def send_to_thread(guild, member, message):
                 print(f"Sent question to existing thread for {member.name}")
             else:
                 print(f"Thread {thread_id} not found, creating a new one...")
-                await create_private_thread(guild, member, message)
+                await create_private_thread(guild, member, message, language)
         else:
-            await create_private_thread(guild, member, message)
+            await create_private_thread(guild, member, message, language)
     else:
         print(f"Channel '{JOURNAL_CHANNEL_NAME}' not found.")
 
@@ -215,11 +218,19 @@ async def create_private_thread(guild, member, question, language):
     #     print(f"Channel '{STANDUP_CHANNEL_NAME}' not found.")
 
 
+async def add_journal_score(username):
+    # increment journal streak
+    await STREAK_CHANNEL.send(f"/add user: {username} scoreboard: journal points: 1")
+    print(f'Journal Score increased for {username}')
+
+
 @discord_client.event
 async def on_message(message):
     if message.author == discord_client.user:
         return
 
+    # todo make journals not need keywords when responding to prompts
+    # hint: read thread name to get language
     print(f'Received message from {message.author}: {message.content}')
 
     if "Could you explain" in message.content or "请解释" in message.content:
@@ -235,7 +246,9 @@ async def on_message(message):
                 f'Please write at least 100 words. You wrote {word_count} words.'
             )
         else:
-            response = await process_message(message, journal_content, "English")
+            # response = await process_message(message, journal_content, "English")
+            response = "test"
+            await add_journal_score(username=message.author)
             await message.channel.send(
                 f'Here is the corrected version of your journal entry:\n\n{response}\n\nCongratulations, your hard work will pay off! 💪'
             )
@@ -250,7 +263,9 @@ async def on_message(message):
         if char_count < 100:
             await message.channel.send(f'请写至少100个字。你写了 {char_count} 个字。')
         else:
-            response = await process_message(message, journal_content, "Chinese")
+            # response = await process_message(message, journal_content, "Chinese")
+            response = "test"
+            await add_journal_score(username=message.author)
             await message.channel.send(f'这是你日记的改正版本：\n\n{response}\n\n恭喜，你努力一定会有回报！💪')
             # await message.channel.send("如果你对改正有任何问题，请以 '请解释' 开头提问。")
 
@@ -267,9 +282,6 @@ async def process_message(message, content, language):
             }])
         response = completion.choices[0].message.content.strip()
         print(f"Received response from OpenAI: {response}")
-
-        # increment journal streak
-        # await streak_channel.send(f"/add user: {message.author} scoreboard: journal points: 1")
         return response
     except Exception as e:
         print(f"Error in OpenAI call: {e}")
